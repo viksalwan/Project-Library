@@ -1,0 +1,373 @@
+---
+title: "Final Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r warning=FALSE}
+library(readr)
+library(tidyr)
+library(lubridate)
+library(rpart)
+library(caret)
+library(rpart.plot)
+library
+patrons <- read_csv("~/Desktop/PatronsID_hashedXPatronType.csv")
+# sam.kome@cuc.claremont.edu
+fallsemiwireless <- read_delim("~/Desktop/2016FallSemWireless.csv",  "\t", escape_double = FALSE, trim_ws = TRUE)
+library(dplyr)
+library(ggplot2)
+ccl201601 <- read_csv("~/Downloads/ezproxy/ccl201601_report_hashed.csv", col_names = c("uuid","campus","datetime","session","ipSubnet") )
+ccl201602 <- read_csv("~/Downloads/ezproxy/ccl201602_report_hashed.csv",  col_names = c("uuid","campus","datetime","session","ipSubnet"))
+ccl201603 <- read_csv("~/Downloads/ezproxy/ccl201603_report_hashed.csv", col_names = c("uuid","campus","datetime","session","ipSubnet"))
+ccl201604 <- read_csv("~/Downloads/ezproxy/ccl201604_report_hashed.csv",  col_names = c("uuid","campus","datetime","session","ipSubnet")) 
+ccl201605 <- read_delim("~/Downloads/ezproxy/ccl201605_report_hashed.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+ccl201606 <- read_delim("~/Downloads/ezproxy/ccl201606_report_hashed.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+ccl201607 <- read_delim("~/Downloads/ezproxy/ccl201607_report_hashed.tsv", 
+    "\t", col_names = c("uuid","campus","datetime","session","ipSubnet"), escape_double = FALSE, trim_ws = TRUE)
+ccl201608 <- read_delim("~/Downloads/ezproxy/ccl201608_report_hashed.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+ccl201609 <- read_delim("~/Downloads/ezproxy/ccl201609_report_hashed.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+ccl201610 <- read_delim("~/Downloads/ezproxy/ccl201610_report_hashed.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+ccl201611 <- read_delim("~/Downloads/ezproxy/ccl201611_report_hashed.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+ccl201612 <- read_delim("~/Downloads/ezproxy/ccl201612_report_hashed.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+spu201601 <- read_delim("~/Desktop/Linear Models/Final Project - Linear Models/spu201601.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+spu201602 <- read_delim("~/Desktop/Linear Models/Final Project - Linear Models/spu201602.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+spu201603 <- read_delim("~/Desktop/Linear Models/Final Project - Linear Models/spu201603.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+spu201604 <- read_delim("~/Desktop/Linear Models/Final Project - Linear Models/spu201604.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+spu201605 <- read_delim("~/Desktop/Linear Models/Final Project - Linear Models/spu201605.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+spu201606 <- read_delim("~/Desktop/Linear Models/Final Project - Linear Models/spu201606.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+spu201607 <- read_delim("~/Desktop/Linear Models/Final Project - Linear Models/spu201607.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+spu201608 <- read_delim("~/Desktop/Linear Models/Final Project - Linear Models/spu201608.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+spu201609 <- read_delim("~/Desktop/Linear Models/Final Project - Linear Models/spu201609.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+spu201610 <- read_delim("~/Desktop/Linear Models/Final Project - Linear Models/spu201610.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+spu201611 <- read_delim("~/Desktop/Linear Models/Final Project - Linear Models/spu201611.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+
+```
+
+```{r}
+ccl <- rbind(ccl201601,ccl201602,ccl201603,ccl201604,ccl201605,ccl201606,ccl201607,ccl201608,ccl201609,ccl201610,ccl201611,ccl201612)
+spu <- rbind(spu201601,spu201602,spu201603,spu201604,spu201605,spu201606,spu201607,spu201608,spu201609,spu201610,spu201611)
+combined1 <- left_join(ccl,spu,by="session")
+combined1 <- left_join(combined1,patrons,by="uuid")
+combined1$campus.x[combined1$campus.x=="pom"] <- c("pomona")
+combined1$campus.x[combined1$campus.x=="scr"] <- c("scrippscollege")
+combined1$campus.x[combined1$campus.x=="pit"] <- c("pitzer")
+combined1$domain <- as.factor(combined1$domain)
+separate(combined1,datetime,c("year","month","day"),by=" ")
+combined1 <- combined1 %>%
+  mutate(dateIN=substr(datetime,1,11),TimeIn=substr(datetime,12,20),TimeOut=substr(datetime,21,45),MonthUse=substr(dateIN,6,7))
+
+combined1$MonthUse[combined1$MonthUse==c("01")] <- c("01Jan")
+combined1$MonthUse[combined1$MonthUse==c("02")] <- c("2Feb")
+combined1$MonthUse[combined1$MonthUse==c("03")] <- c("3Mar")
+combined1$MonthUse[combined1$MonthUse==c("04")] <- c("4Apr")
+combined1$MonthUse[combined1$MonthUse==c("05")] <- c("5May")
+combined1$MonthUse[combined1$MonthUse==c("06")] <- c("6June")
+combined1$MonthUse[combined1$MonthUse==c("07")] <- c("7July")
+combined1$MonthUse[combined1$MonthUse==c("08")] <- c("8Aug")
+combined1$MonthUse[combined1$MonthUse==c("09")] <- c("9Sept")
+combined1$MonthUse[combined1$MonthUse==c("10")] <- c("10Oct")
+combined1$MonthUse[combined1$MonthUse==c("11")] <- c("11Nov")
+combined1$MonthUse[combined1$MonthUse==c("12")] <- c("12Dec")
+
+
+```
+WAPID - Location, wireless access point, floor, 
+UIUD - User Id 
+MACID - The same user can have more than 1 mac id, depends on the number of 
+
+
+
+
+```{r}
+
+ptype <- combined1 %>%
+  filter(!is.na(patronType),!is.na(domain),!is.na(campus.x)) %>%
+  select(domain,patronType,campus.x) %>%
+  group_by(domain,patronType,campus.x) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) 
+
+
+gradmostused <- ptype %>% 
+  filter(count>3000,patronType=="graduate student") 
+
+
+undergradmostused <- ptype %>%
+  filter(count>1000,patronType=="undergraduate") %>%
+  arrange(desc(count)) %>%
+  head(30)
+
+alumnimostused <- ptype %>%
+  filter(count>500,patronType=="alumni")
+
+staffmostused <- ptype %>%
+  filter(count>1000,patronType=="staff")
+
+seniormostused <- ptype %>%
+  filter(count>550,patronType=="seniors")
+
+facultymostused <- ptype %>%
+  filter(count>500,patronType=="faculty")
+
+overall <- ptype%>%
+  filter(count>1000, campus.x!="cgu") %>%
+  arrange(desc(count)) 
+
+overall
+
+kgiusage
+kgiusage <- data.frame(kgiusage)
+seniormostused <- data.frame(seniormostused)
+facultymostused <- data.frame(facultymostused)
+gradmostused <- data.frame(gradmostused)
+undergradmostused <- data.frame(undergradmostused)
+alumnimostused <- data.frame(alumnimostused)
+
+
+undergradmostused
+seniormostused
+
+ggplot(undergradmostused,aes(x=domain,y=count,fill=campus.x))+geom_bar(stat = "identity")+ylab("Number of Times Used")+xlab("Journal")+ggtitle("Most Popular Journals Used By Undergraduates (Used Atleast 500 times)") 
+# Notes/ Insights - 
+
+
+ggplot(alumnimostused,aes(x=domain,y=count,fill=campus.x))+geom_bar(stat = "identity")+ylab("Number of Times Used")+xlab("Journal")+ggtitle("Most Popular Journals Used By Alumni (Used Atleast 500 times)") 
+
+ggplot(seniormostused,aes(x=domain,y=count,fill=campus.x))+geom_bar(stat = "identity")+ylab("Number of Times Used")+xlab("Journal")+ggtitle("Most Popular Journals Used By Seniors (Used Atleast 550 times)") 
+
+ggplot(gradmostused,aes(x=domain,y=count,fill=campus.x))+geom_bar(stat = "identity")+ylab("Number of Times Used")+xlab("Journal")+ggtitle("Most Popular Journals Used By Graduate Students (Used Atleast 1500 times)") 
+
+ggplot(overall,aes(x=domain,y=count,fill=campus.x))+geom_bar(stat = "identity")+ylab("Number of Times Used")+xlab("Journal")+ggtitle("Most Popular Journals Used By Everyone (Used Atleast 1000 times)") 
+
+ggplot(facultymostused,aes(x=domain,y=count,fill=campus.x))+geom_bar(stat = "identity")+ylab("Number of Times Used")+xlab("Journal")+ggtitle("Most Popular Journals Used By Faculty(Used Atleast 2000 times)") 
+# Faculty don't use journals as much as students. 
+
+```
+
+```{r}
+stype <- combined1 %>%
+  filter(!is.na(patronType),!is.na(domain),!is.na(campus.x)) %>%
+  filter(domain=="eblib",campus.x=="cmc") %>%
+  group_by(patronType) %>%
+  summarise(count = n())
+
+stype
+# Only 4 journals were used by undergrads more than 500 times. Eblib was used only by undergrads at 3 of the colleges. It was used 314 times at HMC. 
+
+overall1 <- ptype%>%
+  filter(count>1000) %>%
+  arrange(desc(count)) 
+
+```
+
+```{r}
+#Unique Users - Trying to Find the Number of Distinct Users 
+
+unique1 <- combined1 %>%
+  filter(!is.na(patronType),!is.na(domain),!is.na(uuid)) %>%
+  group_by(domain) %>%
+  summarise(UniqueUsers=n_distinct(uuid)) %>%
+  arrange(desc(UniqueUsers))
+
+unique1
+# Journals that have less than 10 unique users
+
+# 144 Journals have only 1 unique user. 269 Journals have less than 10  unique users. 
+
+# Unique Undergraduate Users  
+uniqueunder <- uni %>%
+  filter(patronType=="undergraduate") %>%
+  group_by(domain,campus.x) %>%
+  summarise(countunique=n_distinct(uuid)) 
+  
+uniqueunder
+
+# Journal Usage Pattern among students  - How many journals does an average student use? How does this differ among the different colleges? (Unique Users)
+
+usage <- combined1 %>%
+  filter(!is.na(campus.x),!is.na(uuid),!is.na(domain)) %>%
+  group_by(domain,campus.x) %>%
+  summarise(numofjournalsused=n_distinct(uuid)) %>%
+  arrange(desc(numofjournalsused)) %>%
+  filter(numofjournalsused>100) %>%
+  head(18)
+
+
+usage
+
+ggplot(usage,aes(x=domain,y=numofjournalsused,fill=campus.x)) + geom_bar(stat="identity")+ylab("Number of Unique Users")+ggtitle("Most Popular Journals by Number of Users")
+  #summarise(avg = mean(numofjournalsused), median=median(numofjournalsused))
+  
+unique1 <- data.frame(unique1)
+unique1
+```
+
+
+```{r}
+# The average person associated with the Claremont Colleges uses 7.17 journals. The median journal usage is 6 journals. 
+
+# For Pomona - 
+usagepom <- combined1 %>%
+  filter(!is.na(campus.x),!is.na(uuid),!is.na(domain),campus.x=="pomona") %>%
+  group_by(uuid) %>%
+  summarise(numofjournalsused=n_distinct(domain)) %>%
+  summarise(avg = mean(numofjournalsused), median=median(numofjournalsused))
+  
+usagepom
+# The average Pomona student uses 6 different journals, while the median use is 7 journals. 
+
+# CMC usage
+usagecmc <- combined1 %>%
+  filter(!is.na(campus.x),!is.na(uuid),!is.na(domain),campus.x=="cmc") %>%
+  group_by(uuid) %>%
+  summarise(numofjournalsused=n_distinct(domain)) %>%
+  summarise(avg = mean(numofjournalsused), median=median(numofjournalsused))
+  
+usagecmc
+# The average CMC student uses 6 different journals, while the median use is 5 journals. 
+
+# Pitzer usage 
+usagepitzer <- combined1 %>%
+  filter(!is.na(campus.x),!is.na(uuid),!is.na(domain),campus.x=="pitzer") %>%
+  group_by(uuid) %>%
+  summarise(numofjournalsused=n_distinct(domain)) %>%
+  summarise(avg = mean(numofjournalsused), median=median(numofjournalsused))
+  
+usagepitzer
+
+# The average Pitzer student uses 6 different journals, while the median use is 5 journals.
+
+# Pitzer usage 
+usagescripps <- combined1 %>%
+  filter(!is.na(campus.x),!is.na(uuid),!is.na(domain),campus.x=="scrippscollege") %>%
+  group_by(uuid) %>%
+  summarise(numofjournalsused=n_distinct(domain)) %>%
+  summarise(avg = mean(numofjournalsused), median=median(numofjournalsused))
+  
+usagescripps
+
+# The average Scripps student uses 7 different journals, while the median use is 6 journals. 
+
+# Mudd Usage 
+usagemudd <- combined1 %>%
+  filter(!is.na(campus.x),!is.na(uuid),!is.na(domain),campus.x=="hmc",domain=="jstor") %>%
+  group_by(uuid) %>%
+  summarise(numofjournalsused=n_distinct(domain)) %>%
+  summarise(avg = mean(numofjournalsused), median=median(numofjournalsused))
+  
+usagemudd
+# The average Mudd student uses 5 different journals, while the median use is 5 journals.  
+
+# CGU Usage 
+usagecgu <- combined1 %>%
+  filter(!is.na(campus.x),!is.na(uuid),!is.na(domain),campus.x=="cgu") %>%
+  group_by(uuid) %>%
+  summarise(numofjournalsused=n_distinct(domain)) %>%
+  summarise(avg = mean(numofjournalsused), median=median(numofjournalsused))
+  
+usagecgu
+
+# The average CGU student uses 8 different journals, while the median use is 7 journals. 
+
+
+
+usage1 <- combined1 %>%
+  filter(!is.na(campus.x),!is.na(uuid),!is.na(domain),campus.x!="cuc",campus.x!="kecksci",campus.x!="kec") %>%
+  group_by(uuid,campus.x) %>%
+  summarise(numofjournalsused=n_distinct(domain)) 
+ggplot(usage1,aes(x=numofjournalsused,col=campus.x))+geom_freqpoly()+xlab("Number of Different Journals Used")+ylab("Number of Students")+ggtitle("Distribution of Journal Usage Across the Claremont Colleges")
+```
+Some of the Insights: 
+Only 3 Journals (ebscohost,oclc, and ebrary) are used more than 1000 times by atleast 4 of the schools. 
+
+JStor is not very widely used for STEM since HMC students have used it less than 600 times in the semester. An implication of this would be that HMC should not be paying much for jstor and other humanities/social sciences journals. Jstor is being used predominantly by seniors. 
+
+Alumni from Harvey Mudd don't use resources as much as alumni from other schools (less than 500 times per journal). The most used journal for HMC alumni is ebscohost, which was used 484 times. 
+
+Only Ebscohost is used by seniors from each of the 5 schools at least 500 times. Seniors at Harvey Mudd don't use any other journal more than 500 times a semester. Only Ebsocohst, Ebrary, Jstor, and Oclc are used by seniors from four of the schools atleast 500 times. Seniors at Pomona have the most journal usage for the top journals, followed by Scripps, Claremont McKenna, and Pitzer respectively. 
+
+The majority of the usage for graduate students is undertaken by students from CGU, which should be reflected in the payment structure of CGU and KGI.
+
+
+```{r}
+#Adding a month variable
+
+ptype3 <- combined1 %>%
+  filter(!is.na(domain),!is.na(campus.x),!is.na(MonthUse)) %>%
+  select(domain,patronType,campus.x,MonthUse) %>%
+  group_by(MonthUse,campus.x) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+ptype3
+
+ggplot(ptype3,aes(x=MonthUse,y=count,fill=campus.x))+geom_bar(stat="identity")
+
+
+```
+
+```{r}
+# Finding the duration of each session
+
+durationcombined <- combined1 %>%
+  filter(TimeOut != "No Session End Date") %>%
+  mutate(Out=substr(TimeOut,11,25),DateOut=substr(TimeOut,1,10))
+
+durationcombined$dur <- difftime(strptime(durationcombined$Out, format = "%H:%M:%OS"),
+strptime(durationcombined$TimeIn, format = "%H:%M:%OS"),units="mins")
+
+durationcombined<- durationcombined %>%
+  filter(!is.na(patronType),!is.na(domain),!is.na(uuid),dur>0) 
+
+stat.occ <- durationcombined %>%
+  filter(!is.na(patronType),!is.na(domain),!is.na(uuid)) %>%
+  group_by(domain,campus.x,MonthUse,patronType) %>%
+  summarise(UniqueUsers=n_distinct(uuid)) 
+
+
+stat.occ <- data.frame(stat.occ)
+stat.occ
+occ.train <- stat.occ[-c(9000:13659),]
+occ.train
+occ.test <- stat.occ[-(1:8999),]
+occ.test
+
+set.seed(12)
+occ.rf <- train(UniqueUsers ~., data=occ.train, method="rf",
+           trControl = trainControl(method="oob"), 
+           ntree=300, tuneGrid = data.frame(mtry=3),
+           importance = TRUE) 
+print(occ.rf$finalModel)
+predictions <- predict(occ.rf, occ.test)
+
+occ.rf
+fitControl <- trainControl(method="cv")
+tree.occ <- train(UniqueUsers ~ ., data=occ.train, method="rpart2", 
+                  trControl = fitControl, tuneGrid= data.frame(maxdepth=c(1:5))
+                 )
+tree.occ
+rpart.plot(tree.occ$finalModel)
+
+```
